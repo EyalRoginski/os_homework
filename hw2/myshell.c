@@ -1,6 +1,8 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -10,6 +12,7 @@
 
 int child1 = -1;
 int child2 = -1;
+
 void sigint_handler(int signal) {
     if (child1 > 0) {
         kill(child1, SIGINT);
@@ -27,7 +30,9 @@ int prepare() {
     memset(&sigint_action, 0, sizeof(sigint_action));
     sigint_action.sa_handler = sigint_handler;
     sigint_action.sa_flags = SA_RESTART;
-    printf("%d\n", sigaction(SIGINT, &sigint_action, NULL));
+    if (sigaction(SIGINT, &sigint_action, NULL) == -1) {
+        fprintf(stderr, "Fatal error: %s\n", strerror(errno));
+    }
     return 0;
 }
 
@@ -36,16 +41,22 @@ int prepare() {
  * `stdin`, and its STDOUT to `stdout`. Does not wait for it to exit, returns
  * the pid of the child process.
  * */
-int run(char **arglist, int stdin, int stdout) {
+int run(char **arglist, int new_stdin, int new_stdout) {
     int child_pid = fork();
     if (child_pid < 0) {
-        return -1;
+        fprintf(stderr, "Fatal error: %s\n", strerror(errno));
     }
     if (child_pid == 0) {
-        int dup1 = dup2(stdin, STDIN_FILENO);
-        int dup2 = dup2(stdout, STDOUT_FILENO);
-        execvp(arglist[0], arglist);
-        return 0;
+        int dup_1 = dup2(new_stdin, STDIN_FILENO);
+        int dup_2 = dup2(new_stdout, STDOUT_FILENO);
+        if (dup_1 == -1 || dup_2 == -1) {
+            fprintf(stderr, "Error: %s\n", strerror(errno));
+        }
+        if (execvp(arglist[0], arglist) == -1) {
+            fprintf(stderr, "Error: %s\n", strerror(errno));
+            exit(1);
+        }
+        // execvp should not return
     }
     return child_pid;
 }
@@ -84,7 +95,9 @@ int process_arglist(int count, char **arglist) {
     } else if ((index = find(count, arglist, "|")) != -1) {
         // Open a pipe, for communication between the piped processes
         int pipefd[2];
-        pipe(pipefd);
+        if (pipe(pipefd) == -1) {
+            fprintf(stderr, "Fatal error: %s\n", strerror(errno));
+        }
 
         arglist[index] = NULL;
         child1 = run(arglist, STDIN_FILENO, pipefd[1]);
@@ -106,11 +119,10 @@ int process_arglist(int count, char **arglist) {
         child1 = run(arglist, STDIN_FILENO, fd);
     } else {
         // Run in foreground
-        int child_pid = run_std(arglist);
+        child1 = run_std(arglist);
     }
 
     if (wait_for_children) {
-        int wait1, wait2;
         if (child1 > 0) {
             waitpid(child1, NULL, 0);
         }
