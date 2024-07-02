@@ -31,41 +31,12 @@ int prepare() {
     sigint_action.sa_handler = sigint_handler;
     sigint_action.sa_flags = SA_RESTART;
     if (sigaction(SIGINT, &sigint_action, NULL) == -1) {
-        fprintf(stderr, "Fatal error: %s\n", strerror(errno));
+        perror("signal");
+    }
+    if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {
+        perror("signal");
     }
     return 0;
-}
-
-/**
- * Run the program as dictated by arglist, with the child's STDIN pointed to
- * `stdin`, and its STDOUT to `stdout`. Does not wait for it to exit, returns
- * the pid of the child process.
- * */
-int run(char **arglist, int new_stdin, int new_stdout) {
-    int child_pid = fork();
-    if (child_pid < 0) {
-        fprintf(stderr, "Fatal error: %s\n", strerror(errno));
-    }
-    if (child_pid == 0) {
-        int dup_1 = dup2(new_stdin, STDIN_FILENO);
-        int dup_2 = dup2(new_stdout, STDOUT_FILENO);
-        if (dup_1 == -1 || dup_2 == -1) {
-            fprintf(stderr, "Error: %s\n", strerror(errno));
-        }
-        if (execvp(arglist[0], arglist) == -1) {
-            fprintf(stderr, "Error: %s\n", strerror(errno));
-            exit(1);
-        }
-        // execvp should not return
-    }
-    return child_pid;
-}
-
-/**
- * Like `run`, but the child's STDIN and STDOUT are not changed.
- */
-int run_std(char **arglist) {
-    return run(arglist, STDIN_FILENO, STDOUT_FILENO);
 }
 
 /**
@@ -81,34 +52,95 @@ int find(int count, char **wordlist, char *word) {
     return -1;
 }
 
-int process_arglist(int count, char **arglist) {
-    if (strcmp(arglist[0], "exit") == 0) {
-        return 0;
+void checked_exec(char **arglist) {
+    if (execvp(arglist[0], arglist) == -1) {
+        perror("exec");
+        exit(1);
     }
+}
+
+/**
+ * Run two binaries according to the arglists, and pipe between them (1 | 2).
+ * */
+int pipe_between(char **arglist1, char **arglist2) {
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        return 1;
+    }
+
+    child1 = fork();
+    if (child1 < 0) {
+        perror("fork");
+        return 1;
+    }
+    if (child1 == 0) {
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[1]);
+        checked_exec(arglist1);
+        // Should not return
+    }
+    child2 = fork();
+    if (child2 < 0) {
+        perror("fork");
+        return 1;
+    }
+    if (child2 == 0) {
+        close(pipefd[1]);
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[0]);
+        checked_exec(arglist2);
+    }
+    close(pipefd[0]);
+    close(pipefd[1]);
+    return 0;
+}
+
+/**
+ * Execute a binary with `dup_to` redirected to `fd`, and close `fd` in both the
+ * parent and the child.
+ * */
+int redirection(char **arglist, int fd, int dup_to) {
+    child1 = fork();
+    if (child1 < 0) {
+        perror("fork");
+        return 1;
+    }
+    if (child1 == 0) {
+        dup2(fd, dup_to);
+        close(fd);
+        checked_exec(arglist);
+    }
+    close(fd);
+    return 0;
+}
+
+int process_arglist(int count, char **arglist) {
     int index;
-    int wait_for_children = 1;
     if (strcmp(arglist[count - 1], "&") == 0) {
         // Run in background
         arglist[count - 1] = NULL;
-        run_std(arglist);
-        wait_for_children = 0;
-    } else if ((index = find(count, arglist, "|")) != -1) {
-        // Open a pipe, for communication between the piped processes
-        int pipefd[2];
-        if (pipe(pipefd) == -1) {
-            fprintf(stderr, "Fatal error: %s\n", strerror(errno));
+        int child = fork();
+        if (child < 0) {
+            perror("fork");
+            return 1;
         }
-
+        if (child == 0) {
+            checked_exec(arglist);
+        }
+    } else if ((index = find(count, arglist, "|")) != -1) {
         arglist[index] = NULL;
-        child1 = run(arglist, STDIN_FILENO, pipefd[1]);
-        child2 = run(arglist + index + 1, pipefd[0], STDOUT_FILENO);
+        pipe_between(arglist, &arglist[index + 1]);
     } else if ((index = find(count, arglist, "<")) != -1) {
         int fd = open(arglist[index + 1], 0);
         if (fd == -1) {
-            return 0;
+            perror("file");
+            return 1;
         }
+        arglist[index] = NULL;
 
-        child1 = run(arglist, fd, STDOUT_FILENO);
+        redirection(arglist, fd, STDIN_FILENO);
     } else if ((index = find(count, arglist, ">>")) != -1) {
         // Open the file in append mode, creating if neccasary with `311`
         // permissions (read / write for user, read for everyone else)
@@ -116,19 +148,24 @@ int process_arglist(int count, char **arglist) {
                       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
         // Shorten `arglist` to not include `>> filename`
         arglist[index] = NULL;
-        child1 = run(arglist, STDIN_FILENO, fd);
+        redirection(arglist, fd, STDOUT_FILENO);
     } else {
         // Run in foreground
-        child1 = run_std(arglist);
+        child1 = fork();
+        if (child1 < 0) {
+            perror("fork");
+            return 1;
+        }
+        if (child1 == 0) {
+            checked_exec(arglist);
+        }
     }
 
-    if (wait_for_children) {
-        if (child1 > 0) {
-            waitpid(child1, NULL, 0);
-        }
-        if (child2 > 0) {
-            waitpid(child2, NULL, 0);
-        }
+    if (child1 > 0) {
+        waitpid(child1, NULL, 0);
+    }
+    if (child2 > 0) {
+        waitpid(child2, NULL, 0);
     }
     child1 = -1;
     child2 = -1;
