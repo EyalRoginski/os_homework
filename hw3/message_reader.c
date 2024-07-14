@@ -21,6 +21,8 @@ int main(int argc, char *argv[]) {
     }
     int slot_fd = open(argv[1], O_RDONLY);
     check(slot_fd);
+    int id = atoi(argv[2]);
+    printf("ioctling to id %d\n", id);
     check(ioctl(slot_fd, MSG_SLOT_CHANNEL, atoi(argv[2])));
     char buffer[128];
     int bytes_read;

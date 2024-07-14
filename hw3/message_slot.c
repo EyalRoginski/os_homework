@@ -106,6 +106,8 @@ static ssize_t device_write(struct file *file, const char __user *buffer,
     struct channel_t *channel;
     unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
+    printk(KERN_INFO "writing %ld bytes into slot %d channel %ld", length,
+           minor_num, id);
     if (id == 0) {
         return -EINVAL;
     }
@@ -144,8 +146,10 @@ static ssize_t device_read(struct file *file, char __user *buffer,
                            size_t length, loff_t *offset) {
     struct channel_t *channel;
     char intermediate_buffer[CHANNEL_BUF_LENGTH];
-    int minor_num = iminor(file->f_inode);
+    unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
+    printk(KERN_INFO "reading %ld bytes from slot %d channel %ld", length,
+           minor_num, id);
     if (id == 0) {
         return -EINVAL;
     }
