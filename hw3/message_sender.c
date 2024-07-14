@@ -26,6 +26,7 @@ int main(int argc, char *argv[]) {
     sleep(1);
     printf("sending %ld bytes: %s\n", strlen(argv[3]), argv[3]);
     check(write(slot_fd, argv[3], strlen(argv[3])));
+    check(fsync(slot_fd));
     check(close(slot_fd));
     return 0;
 }
