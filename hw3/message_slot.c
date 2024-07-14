@@ -32,7 +32,6 @@ struct message_slot_t {
 };
 
 struct message_slot_t message_slots[MAX_MESSAGE_SLOTS];
-spinlock_t global_lock;
 
 struct channel_t *new_channel(unsigned long id) {
     struct channel_t *new_channel =
@@ -105,8 +104,6 @@ static ssize_t device_write(struct file *file, const char __user *buffer,
                             size_t length, loff_t *offset) {
     char intermediate_buffer[CHANNEL_BUF_LENGTH];
     struct channel_t *channel;
-    unsigned long flags;
-    spin_lock_irqsave(&global_lock, flags);
     unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
     printk(KERN_INFO "writing %ld bytes into slot %d channel %ld", length,
@@ -127,42 +124,30 @@ static ssize_t device_write(struct file *file, const char __user *buffer,
     }
     memcpy(channel->buf, intermediate_buffer, length);
     channel->message_length = length;
-    spin_unlock_irqrestore(&global_lock, flags);
     return length;
 }
 
 static long device_ioctl(struct file *file, unsigned int ioctl_command_id,
                          unsigned long ioctl_param) {
-    unsigned long flags;
-    spin_lock_irqsave(&global_lock, flags);
     if (ioctl_command_id != MSG_SLOT_CHANNEL || ioctl_param == 0) {
         return -EINVAL;
     }
     printk(KERN_INFO "ioctling to id %ld", ioctl_param);
 
     file->private_data = (void *)ioctl_param;
-    spin_unlock_irqrestore(&global_lock, flags);
     return 0;
 }
 
 static int device_open(struct inode *inode, struct file *file) {
-    unsigned long flags;
-    spin_lock_irqsave(&global_lock, flags);
     file->private_data = (void *)0;
-    spin_unlock_irqrestore(&global_lock, flags);
     return 0;
 }
 
 static ssize_t device_read(struct file *file, char __user *buffer,
                            size_t length, loff_t *offset) {
-    int result;
     struct channel_t *channel;
-    unsigned long flags;
-    unsigned int minor_num;
-    unsigned long id;
-    spin_lock_irqsave(&global_lock, flags);
-    minor_num = iminor(file->f_inode);
-    id = (unsigned long)file->private_data;
+    unsigned int minor_num = iminor(file->f_inode);
+    unsigned long id = (unsigned long)file->private_data;
     printk(KERN_INFO "reading %ld bytes from slot %d channel %ld", length,
            minor_num, id);
     if (id == 0) {
@@ -176,9 +161,7 @@ static ssize_t device_read(struct file *file, char __user *buffer,
     if (length < channel->message_length) {
         return -ENOSPC;
     }
-    result = put_user_buffer(buffer, channel->buf, channel->message_length);
-    spin_unlock_irqrestore(&global_lock, flags);
-    return 0;
+    return put_user_buffer(buffer, channel->buf, channel->message_length);
 }
 
 struct file_operations fops = {
@@ -192,8 +175,6 @@ struct file_operations fops = {
 static int __init message_slot_module_init(void) {
     int i;
     int register_return = register_chrdev(MAJOR_NUM, DEVICE_NAME, &fops);
-    spin_lock_init(&global_lock);
-
     if (register_return < 0) {
         printk(KERN_ERR "%s registration failed for %d, with return value %d",
                DEVICE_NAME, MAJOR_NUM, register_return);
