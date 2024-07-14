@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "message_sender: unexpected number of arguments\n");
         return 1;
     }
-    int slot_fd = open(argv[1], 0);
+    int slot_fd = open(argv[1], O_RDONLY);
     check(slot_fd);
     printf("opened\n");
     check(ioctl(slot_fd, MSG_SLOT_CHANNEL, atoi(argv[2])));
