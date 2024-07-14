@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 void check(int value) {
     if (value < 0) {
         perror("message_sender");
@@ -25,6 +26,7 @@ int main(int argc, char *argv[]) {
     int bytes_read;
     check(bytes_read = read(slot_fd, buffer, 128));
     check(close(slot_fd));
+    printf("bytes read: %d\n", bytes_read);
     check(write(STDOUT_FILENO, buffer, bytes_read));
     return 0;
 }
