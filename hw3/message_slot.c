@@ -174,7 +174,7 @@ struct file_operations fops = {
     .unlocked_ioctl = device_ioctl,
 };
 
-static int __init init(void) {
+static int __init message_slot_module_init(void) {
     int i;
     int register_return = register_chrdev(MAJOR_NUM, DEVICE_NAME, &fops);
     if (register_return < 0) {
@@ -199,7 +199,7 @@ void cleanup_message_slot(struct message_slot_t *slot) {
     }
 }
 
-static void __exit cleanup(void) {
+static void __exit message_slot_module_exit(void) {
     int i;
     unregister_chrdev(MAJOR_NUM, DEVICE_NAME);
     for (i = 0; i < MAX_MESSAGE_SLOTS; i++) {
@@ -207,5 +207,5 @@ static void __exit cleanup(void) {
     }
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init(message_slot_module_init);
+module_exit(message_slot_module_exit);
