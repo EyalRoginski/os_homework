@@ -124,18 +124,16 @@ struct file_operations fops = {
 
 static int __init init(void) {
     int i;
-    unregister_chrdev(MAJOR_NUM, DEVICE_NAME);
-    // int register_return = register_chrdev(MAJOR_NUM, DEVICE_NAME, &fops);
-    // if (register_return < 0) {
-    //     printk(KERN_ERR "%s registration failed for %d, with return value
-    //     %d",
-    //            DEVICE_NAME, MAJOR_NUM, register_return);
-    //     return register_return;
-    // }
-    //
-    // for (i = 0; i < MAX_MESSAGE_SLOTS; i++) {
-    //     message_slots[i].channels = NULL;
-    // }
+    int register_return = register_chrdev(MAJOR_NUM, DEVICE_NAME, &fops);
+    if (register_return < 0) {
+        printk(KERN_ERR "%s registration failed for %d, with return value %d",
+               DEVICE_NAME, MAJOR_NUM, register_return);
+        return register_return;
+    }
+
+    for (i = 0; i < MAX_MESSAGE_SLOTS; i++) {
+        message_slots[i].channels = NULL;
+    }
     return 0;
 }
 static void __exit cleanup(void) { unregister_chrdev(MAJOR_NUM, DEVICE_NAME); }
