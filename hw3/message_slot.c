@@ -132,6 +132,7 @@ static long device_ioctl(struct file *file, unsigned int ioctl_command_id,
     if (ioctl_command_id != MSG_SLOT_CHANNEL || ioctl_param == 0) {
         return -EINVAL;
     }
+    printk(KERN_INFO "ioctling to id %ld", ioctl_param);
 
     file->private_data = (void *)ioctl_param;
     return 0;
