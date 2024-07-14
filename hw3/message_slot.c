@@ -76,6 +76,7 @@ struct channel_t *find_channel(unsigned long id, unsigned int minor_num,
 
 static ssize_t device_write(struct file *file, const char __user *buffer,
                             size_t length, loff_t *offset) {
+    struct channel_t *channel;
     unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
     if (id == 0) {
@@ -84,7 +85,7 @@ static ssize_t device_write(struct file *file, const char __user *buffer,
     if (length == 0 || length > CHANNEL_BUF_LENGTH) {
         return -EMSGSIZE;
     }
-    struct channel_t *channel = find_channel(id, minor_num, 1);
+    channel = find_channel(id, minor_num, 1);
     if (!channel) {
         // Probably problem with memory allocation
         return -ENOMEM;
