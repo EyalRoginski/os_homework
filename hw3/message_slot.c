@@ -23,6 +23,7 @@ MODULE_LICENSE("GPL");
 struct channel_t {
     unsigned int id;
     char buf[CHANNEL_BUF_LENGTH];
+    unsigned char message_length;
     struct channel_t *next;
 };
 
@@ -40,6 +41,7 @@ struct channel_t *new_channel(unsigned long id) {
     new_channel->id = id;
     memset(new_channel->buf, 0, CHANNEL_BUF_LENGTH);
     new_channel->next = NULL;
+    new_channel->message_length = 0;
     return new_channel;
 }
 
@@ -74,8 +76,33 @@ struct channel_t *find_channel(unsigned long id, unsigned int minor_num,
     return channel;
 }
 
+static int copy_user_buffer(char *user_buffer, char *kernel_buffer,
+                            size_t length) {
+    int i, success;
+    for (i = 0; i < length; i++) {
+        success = get_user(kernel_buffer[i], &user_buffer[i]);
+        if (success < 0) {
+            return success;
+        }
+    }
+    return 0;
+}
+
+static int put_user_buffer(char *user_buffer, char *kernel_buffer,
+                           size_t length) {
+    int i, success;
+    for (i = 0; i < length; i++) {
+        success = put_user(kernel_buffer[i], &user_buffer[i]);
+        if (success < 0) {
+            return success;
+        }
+    }
+    return 0;
+}
+
 static ssize_t device_write(struct file *file, const char __user *buffer,
                             size_t length, loff_t *offset) {
+    char intermediate_buffer[CHANNEL_BUF_LENGTH];
     struct channel_t *channel;
     unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
@@ -90,7 +117,11 @@ static ssize_t device_write(struct file *file, const char __user *buffer,
         // Probably problem with memory allocation
         return -ENOMEM;
     }
-    memcpy(channel->buf, buffer, length);
+    if (copy_user_buffer(buffer, intermediate_buffer, length) < 0) {
+        return -EFAULT;
+    }
+    memcpy(channel->buf, intermediate_buffer, length);
+    channel->message_length = length;
     return length;
 }
 
@@ -105,15 +136,30 @@ static long device_ioctl(struct file *file, unsigned int ioctl_command_id,
 }
 
 static int device_open(struct inode *inode, struct file *file) {
-    printk(KERN_INFO "open message_slot");
+    file->private_data = (void *)0;
     return 0;
 }
 
 static ssize_t device_read(struct file *file, char __user *buffer,
                            size_t length, loff_t *offset) {
-    printk(KERN_INFO "read message_slot");
-    return 0;
+    char intermediate_buffer[CHANNEL_BUF_LENGTH];
+    int minor_num = iminor(file->f_inode);
+    unsigned long id = (unsigned long)file->private_data;
+    if (id == 0) {
+        return -EINVAL;
+    }
+    struct channel_t *channel = find_channel(id, minor_num, 0);
+    if (!channel) {
+        // No channel - means no writes to it yet
+        return -EWOULDBLOCK;
+    }
+    if (length < channel->message_length) {
+        return -ENOSPC;
+    }
+    return put_user_buffer(buffer, intermediate_buffer,
+                           channel->message_length);
 }
+
 struct file_operations fops = {
     .owner = THIS_MODULE,
     .read = device_read,
@@ -136,7 +182,24 @@ static int __init init(void) {
     }
     return 0;
 }
-static void __exit cleanup(void) { unregister_chrdev(MAJOR_NUM, DEVICE_NAME); }
+
+void cleanup_message_slot(struct message_slot_t *slot) {
+    struct channel_t *next;
+    struct channel_t *channel = slot->channels;
+    while (channel) {
+        next = channel->next;
+        kfree(channel);
+        channel = next;
+    }
+}
+
+static void __exit cleanup(void) {
+    int i;
+    unregister_chrdev(MAJOR_NUM, DEVICE_NAME);
+    for (i = 0; i < MAX_MESSAGE_SLOTS; i++) {
+        cleanup_message_slot(&message_slots[i]);
+    }
+}
 
 module_init(init);
 module_exit(cleanup);
