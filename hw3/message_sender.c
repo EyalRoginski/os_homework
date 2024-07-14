@@ -23,6 +23,8 @@ int main(int argc, char *argv[]) {
     int slot_fd = open(argv[1], O_WRONLY);
     check(slot_fd);
     check(ioctl(slot_fd, MSG_SLOT_CHANNEL, atoi(argv[2])));
+    // sleep(1);
+    printf("sending %ld bytes: %s\n", strlen(argv[3]), argv[3]);
     check(write(slot_fd, argv[3], strlen(argv[3])));
     check(close(slot_fd));
     return 0;
