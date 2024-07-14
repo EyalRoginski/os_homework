@@ -103,9 +103,9 @@ static int put_user_buffer(char *user_buffer, char *kernel_buffer,
 
 static ssize_t device_write(struct file *file, const char __user *buffer,
                             size_t length, loff_t *offset) {
+    char intermediate_buffer[CHANNEL_BUF_LENGTH];
     unsigned long flags;
     spin_lock_irqsave(&global_lock, flags);
-    char intermediate_buffer[CHANNEL_BUF_LENGTH];
     struct channel_t *channel;
     unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
@@ -156,9 +156,9 @@ static int device_open(struct inode *inode, struct file *file) {
 static ssize_t device_read(struct file *file, char __user *buffer,
                            size_t length, loff_t *offset) {
     int result;
+    struct channel_t *channel;
     unsigned long flags;
     spin_lock_irqsave(&global_lock, flags);
-    struct channel_t *channel;
     unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
     printk(KERN_INFO "reading %ld bytes from slot %d channel %ld", length,
@@ -176,6 +176,7 @@ static ssize_t device_read(struct file *file, char __user *buffer,
     }
     result = put_user_buffer(buffer, channel->buf, channel->message_length);
     spin_unlock_irqrestore(&global_lock, flags);
+    return 0;
 }
 
 struct file_operations fops = {
