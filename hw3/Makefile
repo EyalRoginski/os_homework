@@ -1,11 +1,11 @@
 # create object and kernel loadable module)
-CFLAGS:=-std=c11
+CFLAGS := -std=c11
 obj-m := message_slot.o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 
 all:
-	$(MAKE) -C $(KDIR) M=$(PWD) $(CFLAGS) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) CFLAGS=$(CFLAGS) modules
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
