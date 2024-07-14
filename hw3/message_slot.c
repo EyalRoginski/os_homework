@@ -13,7 +13,6 @@
 #define MAX_MESSAGE_SLOTS 256
 #define CHANNEL_BUF_LENGTH 128
 #define MAJOR_NUM 235
-#define NULL 0
 #define DEVICE_NAME "message_slot"
 
 MODULE_LICENSE("GPL");
@@ -61,7 +60,8 @@ struct file_operations fops = {
     .unlocked_ioctl = device_ioctl,
 };
 
-static int __init init() {
+static int __init init(void) {
+    int i;
     int register_return = register_chrdev(MAJOR_NUM, DEVICE_NAME, &fops);
     if (register_return < 0) {
         printk(KERN_ERR "%s registration failed for %d", DEVICE_NAME,
@@ -69,12 +69,12 @@ static int __init init() {
         return register_return;
     }
 
-    for (int i = 0; i < MAX_MESSAGE_SLOTS; i++) {
+    for (i = 0; i < MAX_MESSAGE_SLOTS; i++) {
         message_slots[i].channels = NULL;
     }
     return 0;
 }
-static void __exit cleanup() {}
+static void __exit cleanup(void) {}
 
 module_init(init);
 module_exit(cleanup);
