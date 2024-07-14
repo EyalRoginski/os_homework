@@ -1,3 +1,4 @@
+#include <cstring>
 #undef __KERNEL__
 #define __KERNEL__
 #undef MODULE
@@ -146,7 +147,6 @@ static int device_open(struct inode *inode, struct file *file) {
 static ssize_t device_read(struct file *file, char __user *buffer,
                            size_t length, loff_t *offset) {
     struct channel_t *channel;
-    char intermediate_buffer[CHANNEL_BUF_LENGTH];
     unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
     printk(KERN_INFO "reading %ld bytes from slot %d channel %ld", length,
@@ -162,8 +162,7 @@ static ssize_t device_read(struct file *file, char __user *buffer,
     if (length < channel->message_length) {
         return -ENOSPC;
     }
-    return put_user_buffer(buffer, intermediate_buffer,
-                           channel->message_length);
+    return put_user_buffer(buffer, channel->buf, channel->message_length);
 }
 
 struct file_operations fops = {
