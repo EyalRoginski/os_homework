@@ -22,8 +22,11 @@ int main(int argc, char *argv[]) {
     }
     int slot_fd = open(argv[1], 0);
     check(slot_fd);
+    printf("opened\n");
     check(ioctl(slot_fd, MSG_SLOT_CHANNEL, atoi(argv[2])));
+    printf("ioctled\n");
     check(write(slot_fd, argv[3], strlen(argv[3])));
+    printf("written\n");
     check(close(slot_fd));
     return 0;
 }
