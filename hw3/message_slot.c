@@ -126,8 +126,8 @@ static int __init init(void) {
     int i;
     int register_return = register_chrdev(MAJOR_NUM, DEVICE_NAME, &fops);
     if (register_return < 0) {
-        printk(KERN_ERR "%s registration failed for %d", DEVICE_NAME,
-               MAJOR_NUM);
+        printk(KERN_ERR "%s registration failed for %d, with return value %d",
+               DEVICE_NAME, MAJOR_NUM, register_return);
         return register_return;
     }
 
