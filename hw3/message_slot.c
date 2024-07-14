@@ -90,6 +90,7 @@ static ssize_t device_write(struct file *file, const char __user *buffer,
         return -ENOMEM;
     }
     memcpy(channel->buf, buffer, length);
+    return length;
 }
 
 static long device_ioctl(struct file *file, unsigned int ioctl_command_id,
@@ -99,6 +100,7 @@ static long device_ioctl(struct file *file, unsigned int ioctl_command_id,
     }
 
     file->private_data = (void *)ioctl_param;
+    return 0;
 }
 
 static int device_open(struct inode *inode, struct file *file) {
