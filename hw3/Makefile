@@ -2,12 +2,9 @@
 obj-m := message_slot.o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
-CFLAGS=-std=c11
-export CFLAGS
-
 
 all:
-	$(MAKE) -C $(KDIR) M=$(PWD) CFLAGS=$(CFLAGS) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
