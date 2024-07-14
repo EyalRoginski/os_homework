@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "message_reader: unexpected number of arguments\n");
         return 1;
     }
-    int slot_fd = open(argv[1], O_WRONLY);
+    int slot_fd = open(argv[1], O_RDONLY);
     check(slot_fd);
     check(ioctl(slot_fd, MSG_SLOT_CHANNEL, atoi(argv[2])));
     char buffer[128];
