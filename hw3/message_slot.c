@@ -171,7 +171,7 @@ struct file_operations fops = {
     .read = device_read,
     .write = device_write,
     .open = device_open,
-    .unlocked_ioctl = device_ioctl,
+    .compat_ioctl = device_ioctl,
 };
 
 static int __init init(void) {
