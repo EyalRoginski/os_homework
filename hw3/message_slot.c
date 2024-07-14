@@ -76,7 +76,7 @@ struct channel_t *find_channel(unsigned long id, unsigned int minor_num,
     return channel;
 }
 
-static int copy_user_buffer(char *user_buffer, char *kernel_buffer,
+static int copy_user_buffer(const char *user_buffer, char *kernel_buffer,
                             size_t length) {
     int i, success;
     for (i = 0; i < length; i++) {
@@ -142,13 +142,14 @@ static int device_open(struct inode *inode, struct file *file) {
 
 static ssize_t device_read(struct file *file, char __user *buffer,
                            size_t length, loff_t *offset) {
+    struct channel_t *channel;
     char intermediate_buffer[CHANNEL_BUF_LENGTH];
     int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
     if (id == 0) {
         return -EINVAL;
     }
-    struct channel_t *channel = find_channel(id, minor_num, 0);
+    channel = find_channel(id, minor_num, 0);
     if (!channel) {
         // No channel - means no writes to it yet
         return -EWOULDBLOCK;
