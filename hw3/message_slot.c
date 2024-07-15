@@ -146,6 +146,7 @@ static int device_open(struct inode *inode, struct file *file) {
 static ssize_t device_read(struct file *file, char __user *buffer,
                            size_t length, loff_t *offset) {
     struct channel_t *channel;
+    int success;
     unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
     printk(KERN_INFO "reading %ld bytes from slot %d channel %ld", length,
@@ -161,8 +162,7 @@ static ssize_t device_read(struct file *file, char __user *buffer,
     if (length < channel->message_length) {
         return -ENOSPC;
     }
-    int success =
-        put_user_buffer(buffer, channel->buf, channel->message_length);
+    success = put_user_buffer(buffer, channel->buf, channel->message_length);
     if (success < 0) {
         return -EFAULT;
     }
