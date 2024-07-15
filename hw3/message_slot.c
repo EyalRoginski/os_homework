@@ -189,6 +189,8 @@ static int __init message_slot_module_init(void) {
     for (i = 0; i < MAX_MESSAGE_SLOTS; i++) {
         message_slots[i].channels = NULL;
     }
+    printk(KERN_INFO "%s registration successful for major number %d",
+           DEVICE_NAME, MAJOR_NUM);
     return 0;
 }
 
