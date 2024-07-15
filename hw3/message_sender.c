@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
     check(ioctl(slot_fd, MSG_SLOT_CHANNEL, atoi(argv[2])));
     printf("sending %ld bytes: %s\n", strlen(argv[3]), argv[3]);
     check(write(slot_fd, argv[3], strlen(argv[3])));
+    printf("written\n");
     check(close(slot_fd));
     return 0;
 }
