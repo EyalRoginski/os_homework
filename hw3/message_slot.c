@@ -161,7 +161,12 @@ static ssize_t device_read(struct file *file, char __user *buffer,
     if (length < channel->message_length) {
         return -ENOSPC;
     }
-    return put_user_buffer(buffer, channel->buf, channel->message_length);
+    int success =
+        put_user_buffer(buffer, channel->buf, channel->message_length);
+    if (success < 0) {
+        return -EFAULT;
+    }
+    return channel->message_length;
 }
 
 struct file_operations fops = {
