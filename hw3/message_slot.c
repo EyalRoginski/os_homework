@@ -106,8 +106,6 @@ static ssize_t device_write(struct file *file, const char __user *buffer,
     struct channel_t *channel;
     unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
-    // printk(KERN_INFO "writing %ld bytes into slot %d channel %ld", length,
-    //        minor_num, id);
     if (id == 0) {
         return -EINVAL;
     }
@@ -132,7 +130,6 @@ static long device_ioctl(struct file *file, unsigned int ioctl_command_id,
     if (ioctl_command_id != MSG_SLOT_CHANNEL || ioctl_param == 0) {
         return -EINVAL;
     }
-    // printk(KERN_INFO "ioctling to id %ld", ioctl_param);
 
     file->private_data = (void *)ioctl_param;
     return 0;
@@ -149,8 +146,6 @@ static ssize_t device_read(struct file *file, char __user *buffer,
     int success;
     unsigned int minor_num = iminor(file->f_inode);
     unsigned long id = (unsigned long)file->private_data;
-    // printk(KERN_INFO "reading %ld bytes from slot %d channel %ld", length,
-    //        minor_num, id);
     if (id == 0) {
         return -EINVAL;
     }
