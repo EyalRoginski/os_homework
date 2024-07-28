@@ -111,6 +111,7 @@ void destroyQueue(void) {
 
 void enqueue(void *item) {
     mtx_lock(&queue.primary_mutex);
+    mtx_lock(&queue.secondary_mutex);
     simple_enqueue(&queue.data_queue, item);
     release_waiting_on_queue();
     mtx_unlock(&queue.primary_mutex);
@@ -133,11 +134,13 @@ void wait_on_queue(void) {
  * */
 void release_waiting_on_queue(void) {
     if (is_empty(&queue.waiting_queue)) {
+        mtx_unlock(&queue.secondary_mutex);
         return;
     }
 
     cnd_t *cond = simple_dequeue(&queue.waiting_queue);
     cnd_signal(cond);
+    mtx_unlock(&queue.secondary_mutex);
     cnd_destroy(cond);
     free(cond);
 }
